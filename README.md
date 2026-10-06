@@ -20,22 +20,7 @@ Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Base
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    DATA["Amazon review JSON files"] --> LOAD["Python ingestion"]
-    LOAD --> SQL[("MySQL: users, products, categories, ratings")]
-    LOAD --> DOC[("MongoDB: review text + summaries")]
-    SQL --> GRAPH["Pearson similarity + consumption relations"]
-    GRAPH --> NEO[("Neo4j graph scenarios")]
-    SQL --> MENU["Interactive analysis menu"]
-    DOC --> MENU
-    MENU --> VIZ["Charts, word clouds and recommendations"]
-    NEO --> GVIZ["Graph visualisations"]
-    classDef code fill:#dbeafe,stroke:#2563eb,color:#0f172a;
-    classDef result fill:#dcfce7,stroke:#16a34a,color:#0f172a;
-    class LOAD,GRAPH,MENU code;
-    class VIZ,GVIZ result;
-```
+![Amazon reviews ingestion and analysis across MySQL, MongoDB and Neo4j](.codex/visuals/architecture.png)
 
 MySQL stores structured entities and ratings; MongoDB stores review text and summaries with `reviewerID` and `asin` for application-level lookups. Neo4j graphs are built from MySQL query results. This is an academic integration, without a distributed transaction layer across the three services.
 
@@ -43,34 +28,7 @@ MySQL stores structured entities and ratings; MongoDB stores review text and sum
 
 The following diagram follows the tables and foreign keys created in [`load_data.py`](load_data.py). Foreign-key columns are nullable in the original schema.
 
-```mermaid
-erDiagram
-    Usuarios o|--o{ Reviews_Metadatos : writes
-    Articulos o|--o{ Reviews_Metadatos : receives
-    Categorias o|--o{ Articulos : groups
-    Usuarios {
-        varchar reviewerID PK
-        varchar reviewerName
-    }
-    Categorias {
-        int id_categoria PK
-        varchar nombre_categoria UK
-    }
-    Articulos {
-        varchar asin PK
-        int id_categoria FK
-    }
-    Reviews_Metadatos {
-        int id_reviews PK
-        varchar reviewerID FK
-        varchar asin FK
-        real overall
-        int unixReviewTime
-        date reviewTime
-        int helpful_votes
-        int helpful_total
-    }
-```
+![Relational tables, nullable foreign keys and separate MongoDB review documents](.codex/visuals/data_model.png)
 
 ## Repository guide
 
