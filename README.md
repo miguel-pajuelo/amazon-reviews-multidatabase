@@ -1,72 +1,154 @@
-# Análisis de reseñas de Amazon con MySQL, MongoDB y Neo4j
+# Amazon Reviews Analysis with MySQL, MongoDB and Neo4j
 
-Proyecto académico de **Miguel Pajuelo Gómez y Jorge Ois de Pascual** para Bases de Datos, ICAI, Universidad Pontificia Comillas.
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
+![Neo4j](https://img.shields.io/badge/Neo4j-4581C3?logo=neo4j&logoColor=white)
 
-Infraestructura de almacenamiento y análisis de reseñas de Amazon: MySQL conserva las entidades y metadatos estructurados, MongoDB los textos, y Neo4j los grafos de similitudes y consumo. Python coordina la carga, las consultas, la visualización y una recomendación sencilla de artículos no consumidos.
+**One reviews dataset, three database models: structured metadata, review documents and user/product graphs.**
 
-## Arquitectura y módulos
+Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Bases de Datos*, ICAI, Universidad Pontificia Comillas. Python coordinates ingestion, cross-database queries, visual analysis and a simple popularity-based recommendation workflow.
 
-```text
-JSON de reseñas ── load_data.py ──┬── MySQL: usuarios, categorías, artículos y valoraciones
-                                └── MongoDB: textos y resúmenes
-MySQL ── neo4JProyecto.py ── Neo4j: similitudes, artículos y relaciones de consumo
-MySQL + MongoDB ── menu_visualizacion.py ── gráficos, nubes y recomendaciones
+[Architecture](#architecture) · [Data model](#relational-data-model) · [Setup](#setup) · [Execution](#execution) · [Report](documentacion/memoria.pdf)
+
+## What the project demonstrates
+
+- **Data modelling:** choosing relational tables, document storage and graph relationships for different parts of the same domain.
+- **ETL in Python:** reading line-delimited review JSON, normalising metadata and batching review texts into MongoDB.
+- **SQL and graph analysis:** joining users and products, calculating user similarity with Pearson correlation and exploring consumption relationships.
+- **Visual exploration:** review activity over time, ratings, popular products, word clouds and graph visualisations.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    DATA["Amazon review JSON files"] --> LOAD["Python ingestion"]
+    LOAD --> SQL[("MySQL: users, products, categories, ratings")]
+    LOAD --> DOC[("MongoDB: review text + summaries")]
+    SQL --> GRAPH["Pearson similarity + consumption relations"]
+    GRAPH --> NEO[("Neo4j graph scenarios")]
+    SQL --> MENU["Interactive analysis menu"]
+    DOC --> MENU
+    MENU --> VIZ["Charts, word clouds and recommendations"]
+    NEO --> GVIZ["Graph visualisations"]
+    classDef code fill:#dbeafe,stroke:#2563eb,color:#0f172a;
+    classDef result fill:#dcfce7,stroke:#16a34a,color:#0f172a;
+    class LOAD,GRAPH,MENU code;
+    class VIZ,GVIZ result;
 ```
 
-| Módulo | Responsabilidad |
+MySQL stores structured entities and ratings; MongoDB stores review text and summaries with `reviewerID` and `asin` for application-level lookups. Neo4j graphs are built from MySQL query results. This is an academic integration, without a distributed transaction layer across the three services.
+
+## Relational data model
+
+The following diagram follows the tables and foreign keys created in [`load_data.py`](load_data.py). Foreign-key columns are nullable in the original schema.
+
+```mermaid
+erDiagram
+    Usuarios o|--o{ Reviews_Metadatos : writes
+    Articulos o|--o{ Reviews_Metadatos : receives
+    Categorias o|--o{ Articulos : groups
+    Usuarios {
+        varchar reviewerID PK
+        varchar reviewerName
+    }
+    Categorias {
+        int id_categoria PK
+        varchar nombre_categoria UK
+    }
+    Articulos {
+        varchar asin PK
+        int id_categoria FK
+    }
+    Reviews_Metadatos {
+        int id_reviews PK
+        varchar reviewerID FK
+        varchar asin FK
+        real overall
+        int unixReviewTime
+        date reviewTime
+        int helpful_votes
+        int helpful_total
+    }
+```
+
+## Repository guide
+
+| Module | Responsibility |
 |---|---|
-| `configuracion.py` | Conexiones por variables de entorno y rutas de datos. |
-| `load_data.py` | Creación de tablas e inserción de las cuatro categorías principales. |
-| `insertar_dataset.py` | Incorporación de siete categorías adicionales. |
-| `menu_visualizacion.py` | Distribuciones temporales, popularidad, valoraciones, nubes de palabras y recomendación. |
-| `neo4JProyecto.py` | Similitud de Pearson, relaciones usuario-artículo-categoría y visualización de grafos. |
+| [configuracion.py](configuracion.py) | Database connection settings and portable dataset paths. |
+| [load_data.py](load_data.py) | Schema creation and ingestion of four main review categories. |
+| [insertar_dataset.py](insertar_dataset.py) | Ingestion of seven additional categories. |
+| [menu_visualizacion.py](menu_visualizacion.py) | Interactive SQL/document analysis, charts and recommendations. |
+| [neo4JProyecto.py](neo4JProyecto.py) | Pearson similarity, user/product/category graphs and visualisation. |
+| [Dataset instructions](datos/README.md) | Expected files and the historical Amazon review format. |
+| [Report](documentacion/memoria.pdf) / [Poster](documentacion/poster.pdf) | Original submission and proposed extensions. |
 
-Consultar la [memoria de entrega](documentacion/memoria.pdf), el [póster](documentacion/poster.pdf) y la [procedencia de la selección](PROCEDENCIA.md).
+## Setup
 
-## Preparación
+You need Python and accessible **MySQL, MongoDB and Neo4j** services. The repository does not bundle or automatically start database servers.
 
-Requiere Python y servicios accesibles de MySQL, MongoDB y Neo4j. Crear un entorno nuevo; los entornos del ordenador original no se distribuyen:
+### 1. Install Python dependencies
 
-```sh
-python -m venv .venv
-# Activar .venv antes de instalar: ver instrucciones inmediatamente debajo.
-python -m pip install -r requirements.txt
-```
-
-Activar `.venv` antes de instalar y ejecutar: `.venv\Scripts\Activate.ps1` en PowerShell o `. .venv/bin/activate` en un shell POSIX. Configurar las variables de `.env.example` en el shell; el archivo no se carga automáticamente. Por ejemplo, en PowerShell:
+PowerShell, from this directory:
 
 ```powershell
-$env:MYSQL_USER = "TU_USUARIO_MYSQL"
-$env:MYSQL_PASSWORD = "TU_CONTRASENA_LOCAL"
-$env:NEO4J_PASSWORD = "TU_CONTRASENA_NEO4J_LOCAL"
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-La base MySQL usada por defecto es `amazon_reviews`; el usuario necesita permisos para crearla y cargar sus tablas. MongoDB utiliza la base `amazon_reviews` y la colección `reviews`. Neo4j utiliza la base configurada en `NEO4J_DATABASE`; en una instalación Community normalmente es `neo4j`.
+On Linux/macOS, use `.venv/bin/python` instead of `.\.venv\Scripts\python.exe` in the commands below.
 
-Preparar los once datasets siguiendo [datos/README.md](datos/README.md). El código utiliza el formato histórico de reseñas 5-core, no el esquema Amazon 2023. Para aprovechar los archivos conservados localmente, definir `BBDD_DATA_DIR` con la ruta absoluta a la carpeta de datos existente. No se incluyen los grandes JSON en Git.
+### 2. Configure connections and data
 
-## Ejecución
+Use [.env.example](.env.example) as the complete reference. Variables must be exported in the shell; the file is not read automatically. PowerShell example:
 
-Desde esta carpeta, y en bases destinadas a este proyecto:
-
-```sh
-python load_data.py
-python menu_visualizacion.py
-python insertar_dataset.py
+```powershell
+$env:MYSQL_USER = "YOUR_MYSQL_USER"
+$env:MYSQL_PASSWORD = "YOUR_LOCAL_MYSQL_PASSWORD"
+$env:NEO4J_PASSWORD = "YOUR_LOCAL_NEO4J_PASSWORD"
+$env:BBDD_DATA_DIR = "C:\absolute\path\to\review_datasets"
 ```
 
-La carga inicial debe realizarse una sola vez en bases vacías. El cargador original no deduplica las reseñas al repetir una importación.
+| Service | Default configuration |
+|---|---|
+| MySQL | `127.0.0.1:3306`, database `amazon_reviews`; user needs schema/data creation permissions. |
+| MongoDB | `mongodb://127.0.0.1:27017/`, database `amazon_reviews`, collection `reviews`. |
+| Neo4j | `bolt://127.0.0.1:7687`, database `neo4j`; use a dedicated exercise database/instance. |
 
-Los escenarios de Neo4j ejecutan `limpiar_neo4j`, que borra todos los nodos y relaciones de la base seleccionada antes de construir cada grafo. Ejecutarlos en una instancia/base dedicada al ejercicio:
+Prepare the eleven dataset files described in [datos/README.md](datos/README.md). The code expects the historical **5-core Amazon reviews format**, not Amazon 2023. Large JSON files and local passwords are excluded from Git.
 
-```sh
-python neo4JProyecto.py
+## Execution
+
+With the services running, use databases dedicated to this project. Load the main categories **once into empty databases**:
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py
+.\.venv\Scripts\python.exe menu_visualizacion.py
 ```
 
-Las imágenes generadas se guardan en `imagenes/`, que se excluye de Git.
+To add the supplementary categories:
 
-## Alcance y estado
+```powershell
+.\.venv\Scripts\python.exe insertar_dataset.py
+```
 
-La recomendación implementada usa popularidad y artículos no consumidos. La memoria también propone filtrado colaborativo, factorización matricial y evaluación como ampliaciones; no se presentan como modelos entrenados por este código.
+To run the interactive graph scenarios:
 
-Las copias permiten configurar otra máquina sin conservar las contraseñas originales. Se mantienen los algoritmos y las consultas de los módulos seleccionados. La preparación no ha cargado ni consultado servicios reales; [VALIDACION.md](VALIDACION.md) distingue las comprobaciones locales del trabajo pendiente para una ejecución completa. El manejo de errores del cargador conserva limitaciones del original, incluido el uso de `conn` en algunas rutas de excepción antes de que exista una conexión.
+```powershell
+.\.venv\Scripts\python.exe neo4JProyecto.py
+```
+
+**Database behaviour to know:** repeated ingestion does not deduplicate review records. Each Neo4j scenario calls `limpiar_neo4j`, deleting all nodes and relationships in the selected graph database before rebuilding it. Use a dedicated instance/database. Generated figures are written to `imagenes/`, which is excluded from Git.
+
+## Implemented analysis and scope
+
+| Implemented in the selected code | Discussed as future extensions in the report |
+|---|---|
+| SQL aggregations and document-backed word clouds. | A trained matrix-factorisation recommendation model. |
+| Pearson user similarities and consumption graphs. | A complete collaborative-filtering evaluation pipeline. |
+| Popularity-based suggestions excluding consumed items. | Benchmark metrics for recommendation quality. |
+
+The diagrams above describe the code and schema; they are not charts from a newly executed database experiment. Configuration and ingestion logic were checked locally with a synthetic record and simulated connectors. No live MySQL/MongoDB/Neo4j loading or new result figures were produced during preparation.
+
+The original loader retains limitations in repeat loads and exception handling, including references to `conn` before connection creation in some error paths. See [VALIDACION.md](VALIDACION.md) for the precise checks and [PROCEDENCIA.md](PROCEDENCIA.md) for the selected versions and portability changes.
