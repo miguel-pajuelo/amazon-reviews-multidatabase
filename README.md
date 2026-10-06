@@ -9,7 +9,35 @@
 
 Academic project by **Miguel Pajuelo Gómez and Jorge Ois de Pascual** for *Bases de Datos*, ICAI, Universidad Pontificia Comillas. Python coordinates ingestion, cross-database queries, visual analysis and a simple popularity-based recommendation workflow.
 
-[Architecture](#architecture) · [Data model](#relational-data-model) · [Setup](#setup) · [Execution](#execution) · [Report](documentacion/memoria.pdf)
+[Usage examples](#the-project-in-use) · [Architecture](#architecture) · [Data model](#relational-data-model) · [Setup](#setup) · [Execution](#execution) · [Report](documentacion/memoria.pdf)
+
+## The project in use
+
+The practical goal is to turn large review files into questions a user can answer interactively: **how people rate products, how review activity changes, which products attract the most reviews and which items a user has not consumed**.
+
+| User question | Application action | Output |
+|---|---|---|
+| What ratings do reviewers give? | Choose option **3** in `menu_visualizacion.py`. | Rating-frequency chart. |
+| How does review activity change by year? | Choose option **1**, then a category or `todo`. | Annual review counts. |
+| Which products have the most reviews? | Choose option **2**. | Products ordered by review count. |
+| What could this user try next? | Choose option **8**, then a user and category. | Up to ten popular products the user has not consumed. |
+| How are reviewers and products connected? | Run the scenarios in `neo4JProyecto.py`. | Similarity and consumption graphs after a database run. |
+
+### Example: review ratings
+
+![Actual rating distribution from the four original source datasets](.codex/visuals/usage_rating_distribution.png)
+
+### Example: review activity over time
+
+![Actual annual review counts for digital music, musical instruments, toys and games, and video games](.codex/visuals/usage_reviews_by_year.png)
+
+### Example: popular products
+
+![Six products with the highest review counts in the original source files](.codex/visuals/usage_popular_products.png)
+
+**Where these examples come from:** all **474,344 records** in the four original primary JSON files were streamed and aggregated directly. The counts, input-file hashes and category scope are recorded in [usage_analysis.json](.codex/visuals/usage_analysis.json). These figures show the analyses supported by the application using real coursework input data. They are newly rendered source-file analyses, **not screenshots of a live MySQL/MongoDB/Neo4j session**.
+
+The files are a historical 5-core snapshot spanning 1998–2014. They do not represent all Amazon purchases or reviews; the final year's count is bounded by the snapshot and should not be interpreted as a full-year market decline. No raw review text or individual reviewer details are published with these examples.
 
 ## What the project demonstrates
 
@@ -107,6 +135,6 @@ To run the interactive graph scenarios:
 | Pearson user similarities and consumption graphs. | A complete collaborative-filtering evaluation pipeline. |
 | Popularity-based suggestions excluding consumed items. | Benchmark metrics for recommendation quality. |
 
-The diagrams above describe the code and schema; they are not charts from a newly executed database experiment. Configuration and ingestion logic were checked locally with a synthetic record and simulated connectors. No live MySQL/MongoDB/Neo4j loading or new result figures were produced during preparation.
+The architecture diagrams describe the code and schema. The new usage charts are direct source-file calculations; no database services were started to generate them. Earlier configuration and ingestion checks used a synthetic record and simulated connectors, as recorded in VALIDACION.md.
 
 The original loader retains limitations in repeat loads and exception handling, including references to `conn` before connection creation in some error paths. See [VALIDACION.md](VALIDACION.md) for the precise checks and [PROCEDENCIA.md](PROCEDENCIA.md) for the selected versions and portability changes.
